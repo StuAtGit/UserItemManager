@@ -4,7 +4,6 @@ import com.google.gson.Gson;
 import com.shareplaylearn.exceptions.InternalErrorException;
 import com.shareplaylearn.models.ItemSchema;
 import com.shareplaylearn.models.UserItem;
-import com.shareplaylearn.services.SecretsService;
 import org.junit.Test;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -57,17 +56,17 @@ public class UserItemManagerTest
                     userItem.getType().equals("image")) {
                 found = true;
                 System.out.println(
-                        "Deleted: "  + userItemManager.deleteItemLocation(userItem.getType(),
+                        "Deleted: "  + userItemManager.deleteItemAtLocation(userItem.getType(),
                                 ItemSchema.PresentationType.ORIGINAL_PRESENTATION_TYPE,
                                 userItem.getOriginalLocation().itemName)
                 );
                 System.out.println(
-                        "Deleted: "  + userItemManager.deleteItemLocation(userItem.getType(),
+                        "Deleted: "  + userItemManager.deleteItemAtLocation(userItem.getType(),
                                 ItemSchema.PresentationType.PREVIEW_PRESENTATION_TYPE,
                                 userItem.getPreviewLocation().itemName)
                 );
                 System.out.println(
-                        "Deleted: "  + userItemManager.deleteItemLocation(userItem.getType(),
+                        "Deleted: "  + userItemManager.deleteItemAtLocation(userItem.getType(),
                                 ItemSchema.PresentationType.PREFERRED_PRESENTATION_TYPE,
                                 userItem.getPreferredLocation().itemName)
                 );

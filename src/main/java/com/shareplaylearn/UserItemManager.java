@@ -120,14 +120,14 @@ public class UserItemManager {
     }
 
     /**
-     * This delete sub-items/representations at the given individual locations associated with an item.
+     * Delete sub-item/representation of the item at the given individual location.
      * @param contentType
      * @param presentationType
      * @param itemName
      * @return
      * @throws AmazonClientException
      */
-    public boolean deleteItemLocation(String contentType, ItemSchema.PresentationType presentationType, String itemName )
+    public boolean deleteItemAtLocation(String contentType, ItemSchema.PresentationType presentationType, String itemName )
             throws AmazonClientException {
         AmazonS3Client s3Client = new AmazonS3Client(
                 new BasicAWSCredentials(SecretsService.amazonClientId, SecretsService.amazonClientSecret)
