@@ -10,14 +10,23 @@ import java.util.HashMap;
  */
 public class UserItem {
 
+    public static class UserItemLocation {
+        public UserItemLocation( String fullPath, String itemName ) {
+            this.fullPath = fullPath;
+            this.itemName = itemName;
+        }
+        public String fullPath;
+        public String itemName;
+    }
     //this field is for backward-compability with current UI code
     //once the UI is updated, remove it.
     //it should be set to the preferred location, unless that does not exist,
     //and then it should be set to the original location
-    private String itemLocation;
-    private String preferredLocation;
-    private String previewLocation;
-    private String originalLocation;
+    //private UserItemLocation itemLocation;
+
+    private UserItemLocation preferredLocation;
+    private UserItemLocation previewLocation;
+    private UserItemLocation originalLocation;
     private String type;
     private HashMap<String,String> attr;
     //looks like Gson doesn't know what to do with this, if it's an instance field
@@ -27,13 +36,15 @@ public class UserItem {
         this.previewLocation = null;
         this.originalLocation = null;
         this.preferredLocation = null;
-        this.itemLocation = null;
+        //this.itemLocation = null;
         this.type = type;
         this.attr = new HashMap<>();
         this.log = LoggerFactory.getLogger(UserItem.class);
     }
 
-    public UserItem(String preferredLocation, String previewLocation, String originalLocation, String type) {
+    public UserItem(UserItemLocation preferredLocation,
+                    UserItemLocation previewLocation,
+                    UserItemLocation originalLocation, String type) {
         this.previewLocation = previewLocation;
         this.originalLocation = originalLocation;
         this.preferredLocation = preferredLocation;
@@ -42,23 +53,23 @@ public class UserItem {
         this.log = LoggerFactory.getLogger(UserItem.class);
     }
 
-    public String getPreviewLocation() {
+    public UserItemLocation getPreviewLocation() {
         return previewLocation;
     }
 
-    public UserItem setLocation(ItemSchema.PresentationType presentationType, String location ) {
+    public UserItem setLocation(ItemSchema.PresentationType presentationType, UserItemLocation location ) {
         if( presentationType.equals(ItemSchema.PresentationType.PREVIEW_PRESENTATION_TYPE) ) {
             return this.setPreviewLocation(location);
         } else if( presentationType.equals(ItemSchema.PresentationType.ORIGINAL_PRESENTATION_TYPE) ) {
-            if( this.itemLocation == null ) {
-                this.itemLocation = location;
-            }
+//            if( this.itemLocation == null ) {
+//                this.itemLocation = location;
+//            }
             if( this.preferredLocation == null ) {
                 this.preferredLocation = location;
             }
             return this.setOriginalLocation(location);
         } else if( presentationType.equals(ItemSchema.PresentationType.PREFERRED_PRESENTATION_TYPE) ) {
-            this.itemLocation = location;
+//            this.itemLocation = location;
             return this.setPreferredLocation(location);
         } else {
             String message = "Tried to set location with an unrecognized presentation type";
@@ -67,16 +78,16 @@ public class UserItem {
         }
     }
 
-    private UserItem setPreviewLocation(String previewLocation) {
+    private UserItem setPreviewLocation(UserItemLocation previewLocation) {
         this.previewLocation = previewLocation;
         return this;
     }
 
-    public String getPreferredLocation() {
+    public UserItemLocation getPreferredLocation() {
         return preferredLocation;
     }
 
-    private UserItem setPreferredLocation(String preferredLocation) {
+    private UserItem setPreferredLocation(UserItemLocation preferredLocation) {
         this.preferredLocation = preferredLocation;
         return this;
     }
@@ -95,11 +106,18 @@ public class UserItem {
         return this;
     }
 
-    public String getOriginalLocation() {
+    public String getAttr( String key ) {
+        if( this.attr.containsKey(key) ) {
+            return this.attr.get(key);
+        }
+        return null;
+    }
+
+    public UserItemLocation getOriginalLocation() {
         return originalLocation;
     }
 
-    private UserItem setOriginalLocation(String originalLocation) {
+    private UserItem setOriginalLocation(UserItemLocation originalLocation) {
         this.originalLocation = originalLocation;
         return this;
     }

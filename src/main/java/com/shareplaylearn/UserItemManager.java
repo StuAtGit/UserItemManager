@@ -1,5 +1,7 @@
 package com.shareplaylearn;
 
+import com.amazonaws.AmazonClientException;
+import com.amazonaws.AmazonServiceException;
 import com.amazonaws.auth.BasicAWSCredentials;
 import com.amazonaws.services.s3.AmazonS3Client;
 import com.amazonaws.services.s3.model.*;
@@ -100,13 +102,13 @@ public class UserItemManager {
                     }
                     int extIndex = name.lastIndexOf(".");
                     if( extIndex > 0 ) {
-                        this.saveItem(name.substring(0, extIndex) + preferredExtension,
+                        this.saveItemAtLocation(name.substring(0, extIndex) + preferredExtension,
                                 uploadEntry.getValue(), contentType, presentationType);
                     } else {
-                        this.saveItem(name + preferredExtension, uploadEntry.getValue(), contentType, presentationType);
+                        this.saveItemAtLocation(name + preferredExtension, uploadEntry.getValue(), contentType, presentationType);
                     }
                 } else {
-                    this.saveItem(name, uploadEntry.getValue(), contentType, presentationType);
+                    this.saveItemAtLocation(name, uploadEntry.getValue(), contentType, presentationType);
                 }
             } else {
                 log.error( "Upload plugin had an entry with a presentation type of: " + presentationType
@@ -115,6 +117,32 @@ public class UserItemManager {
         }
 
         return Response.status(200).build();
+    }
+
+    /**
+     * This delete sub-items/representations at the given individual locations associated with an item.
+     * @param contentType
+     * @param presentationType
+     * @param itemName
+     * @return
+     * @throws AmazonClientException
+     */
+    public boolean deleteItemLocation(String contentType, ItemSchema.PresentationType presentationType, String itemName )
+            throws AmazonClientException {
+        AmazonS3Client s3Client = new AmazonS3Client(
+                new BasicAWSCredentials(SecretsService.amazonClientId, SecretsService.amazonClientSecret)
+        );
+
+        String itemLocation =  getItemLocation(itemName, contentType, presentationType);
+        if (!s3Client.doesObjectExist(ItemSchema.S3_BUCKET,
+               itemLocation)) {
+            log.debug("Did not find item at: " + getItemLocation(itemName, contentType, presentationType));
+            return false;
+        }
+        s3Client.deleteObject(ItemSchema.S3_BUCKET,
+                itemLocation);
+        log.debug("Deleted item at: " + itemLocation);
+        return true;
     }
 
     public Response getItem(String contentType, ItemSchema.PresentationType presentationType,
@@ -173,7 +201,7 @@ public class UserItemManager {
     /**
      * Writes items to S3, and item metadata to Redis
      */
-    private void saveItem( String name, byte[] itemData, String contentType, ItemSchema.PresentationType presentationType  )
+    private void saveItemAtLocation(String name, byte[] itemData, String contentType, ItemSchema.PresentationType presentationType  )
             throws InternalErrorException {
 
         String itemLocation = this.getItemLocation(name, contentType, presentationType);
@@ -204,46 +232,38 @@ public class UserItemManager {
      * @return
      */
     public List<UserItem> getItemList() {
-        HashMap<String,HashMap<ItemSchema.PresentationType,List<String>>> itemLocations = getItemLocations();
+        HashMap<String,HashMap<ItemSchema.PresentationType,List<UserItem.UserItemLocation>>> itemLocations
+                = getItemLocations();
         List<UserItem> itemList = new ArrayList<>();
-
-        //on a per-user basis, then name of the item should be unique,
-        //but variations of it may be stored under different presentation types
-        //(e.g. preview, original)
-        //there is a workaround here because we may add a file extension to some preferred items
-        //we work around it by verifying a preferred item doesn't have an entry that matches without extension
-        //a better fix would be a metadata store fast enough to be usable that stores the original item name
-        //but this works for now.
         HashMap<String,UserItem> userItems = new HashMap<>();
 
-        for( Map.Entry<String, HashMap<ItemSchema.PresentationType, List<String>>> items : itemLocations.entrySet() ) {
+        for( Map.Entry<String, HashMap<ItemSchema.PresentationType, List<UserItem.UserItemLocation>>> items
+                : itemLocations.entrySet() ) {
             String contentType = items.getKey();
 
-            for( Map.Entry<ItemSchema.PresentationType, List<String>> item : items.getValue().entrySet() ) {
+            for( Map.Entry<ItemSchema.PresentationType, List<UserItem.UserItemLocation>> item
+                    : items.getValue().entrySet() ) {
                 ItemSchema.PresentationType presentationType = item.getKey();
 
-                List<String> locations = item.getValue();
-                for( String location : locations ) {
-                    String[] path = location.split("/");
-                    if (path.length == 0) {
-                        log.warn("Found an item path/location with no directory structure: " + location);
-                        continue;
-                    }
-                    String name = path[path.length - 1];
+                List<UserItem.UserItemLocation> locations = item.getValue();
+                for( UserItem.UserItemLocation location : locations ) {
                     //workaround (see above)
-                    int extIndex = name.lastIndexOf(".");
+                    int extIndex = location.itemName.lastIndexOf(".");
+                    //the display name servers as the item key, that associates
+                    //different locations together as the same item.
+                    String itemKey = "";
                     if( extIndex > 0 ) {
-                        name = name.substring(0, extIndex);
+                        itemKey = location.itemName.substring(0, extIndex);
                     }
-                    log.debug("Got a location: " + location + " for item with name: " + name + " for user: " + this.userName);
+                    log.debug("Got a location: " + location + " for item with display name: " + itemKey + " for user: " + this.userName);
                     UserItem userItem = null;
-                    if (!userItems.containsKey(name)) {
-                        userItems.put(name, new UserItem(contentType));
+                    if (!userItems.containsKey(itemKey)) {
+                        userItems.put(itemKey, new UserItem(contentType));
                     }
-                    userItem = userItems.get(name);
+                    userItem = userItems.get(itemKey);
                     userItem.setLocation(presentationType, location);
                     if (presentationType.equals(ItemSchema.PresentationType.PREVIEW_PRESENTATION_TYPE)) {
-                        userItem.addAttr("altText", "Preview of " + name);
+                        userItem.addAttr("altText", "Preview of " + itemKey);
                     }
                 }
             }
@@ -257,8 +277,10 @@ public class UserItemManager {
         return itemList;
     }
 
-    public HashMap<String,HashMap<ItemSchema.PresentationType,List<String>>> getItemLocations() {
-        HashMap<String,HashMap<ItemSchema.PresentationType,List<String>>> itemLocations = new HashMap<>();
+    public HashMap<String,HashMap<ItemSchema.PresentationType,List<UserItem.UserItemLocation>>> getItemLocations() {
+
+        HashMap<String,HashMap<ItemSchema.PresentationType,List<UserItem.UserItemLocation>>> itemLocations
+                = new HashMap<>();
 
         AmazonS3Client s3Client = new AmazonS3Client(
                 new BasicAWSCredentials(SecretsService.amazonClientId, SecretsService.amazonClientSecret));
@@ -269,12 +291,12 @@ public class UserItemManager {
                 ObjectListing listing = s3Client.listObjects( ItemSchema.S3_BUCKET,
                         this.getItemDirectory(contentType, presentationType) );
 
-                HashSet<String> locations = getExternalItemListing(listing);
-                String curDirectory = makeExternalLocation(getItemDirectory(contentType, presentationType));
-                for( String location : locations ) {
+                HashSet<UserItem.UserItemLocation> locations = getExternalItemListing(listing);
+                String curDirectory = makeExternalLocation(getItemDirectory(contentType, presentationType)).fullPath;
+                for( UserItem.UserItemLocation location : locations ) {
                     //it would be nice if s3 didn't return stuff that doesn't technically match the prefix
                     //(due to trailing /), but it looks like it might
-                    if( curDirectory.endsWith(location) ) {
+                    if( curDirectory.endsWith(location.itemName) ) {
                         log.debug( "Skipping location: " + location + " because it looks like a group (folder)" +
                                 ", not an object" );
                         continue;
@@ -289,17 +311,24 @@ public class UserItemManager {
                 }
             }
         }
+
         return itemLocations;
     }
 
-    private HashSet<String> getExternalItemListing( ObjectListing objectListing ) {
-        HashSet<String> itemLocations = new HashSet<>();
+    /**
+     * Gets a listing of items in S3, and translates the locations to those
+     * recgonized by the external item API (used in the RESTful interface)
+     * @param objectListing
+     * @return
+     */
+    private HashSet<UserItem.UserItemLocation> getExternalItemListing(ObjectListing objectListing ) {
+        HashSet<UserItem.UserItemLocation> itemLocations = new HashSet<>();
         for( S3ObjectSummary obj : objectListing.getObjectSummaries() ) {
             String internalPath = obj.getKey();
-            String externalPath = makeExternalLocation(internalPath);
-            if( externalPath != null ) {
-                itemLocations.add(externalPath);
-                log.debug("External path was " + externalPath);
+            UserItem.UserItemLocation externalLocation = makeExternalLocation(internalPath);
+            if( externalLocation != null ) {
+                itemLocations.add(externalLocation);
+                log.debug("External path was " + externalLocation);
             } else {
                 log.info("External path for object list was null?");
             }
@@ -312,11 +341,12 @@ public class UserItemManager {
      * @param internalPath
      * @return
      */
-    private String makeExternalLocation( String internalPath ) {
+    private UserItem.UserItemLocation makeExternalLocation(String internalPath ) {
         //"/root/" is not used in the external API, strip it off
         String[] itemPath = internalPath.split("/");
         if( itemPath.length > 2 ) {
             String externalPath = "";
+            String itemName = "";
             for (int i = 0; i < itemPath.length; ++i) {
                 if( itemPath[i].equals("root")  && i < 2 ) {
                     continue;
@@ -326,8 +356,11 @@ public class UserItemManager {
                 }
                 externalPath += "/";
                 externalPath += itemPath[i];
+                //just keep updating this with valid entries
+                //don't want to use length() and end up with empty dirs or root dirs
+                itemName = itemPath[i];
             }
-            return externalPath;
+            return new UserItem.UserItemLocation(externalPath, itemName);
         }
         return null;
     }
@@ -365,7 +398,7 @@ public class UserItemManager {
             log.error("Error, too many uploads");
             return Response.status(418).entity("I'm a teapot! Er, well, at least I can't hold " + maxSize + " stuff.").build();
         }
-        return Response.status(Response.Status.OK).entity("OK").build();
+            return Response.status(Response.Status.OK).entity("OK").build();
     }
 
     private Response checkQuota() {
