@@ -16,9 +16,9 @@
 
   <distributionManagement>
     <snapshotRepository>
-      <id>nexusRepo</id>
-      <name>Shareplaylearn Nexus Repository</name>
-      <url>https://www.shareplaylearn.net/repo/repository/maven-snapshots/</url>
+      <id>artifactory</id>
+      <name>Shareplaylearn Artifactory Repository</name>
+      <url>https://www.shareplaylearn.net/artifactory/libs-snapshot-local</url>
     </snapshotRepository>
   </distributionManagement>
 
