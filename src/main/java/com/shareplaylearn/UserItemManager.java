@@ -116,7 +116,7 @@ public class UserItemManager {
             }
         }
 
-        return Response.status(200).build();
+        return Response.status(201).build();
     }
 
     /**
