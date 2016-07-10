@@ -1,12 +1,12 @@
 package com.shareplaylearn;
 
 import com.amazonaws.AmazonClientException;
-import com.amazonaws.AmazonServiceException;
 import com.amazonaws.auth.BasicAWSCredentials;
 import com.amazonaws.services.s3.AmazonS3Client;
 import com.amazonaws.services.s3.model.*;
 import com.amazonaws.util.Base64;
-import com.shareplaylearn.exceptions.*;
+import com.shareplaylearn.exceptions.InternalErrorException;
+import com.shareplaylearn.exceptions.QuotaExceededException;
 import com.shareplaylearn.exceptions.UnsupportedEncodingException;
 import com.shareplaylearn.models.ItemSchema;
 import com.shareplaylearn.models.UploadMetadataFields;
@@ -18,12 +18,13 @@ import com.shareplaylearn.services.UploadPreprocessorPlugin;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import javax.ws.rs.core.MediaType;
-import javax.ws.rs.core.Response;
-
-import java.io.*;
+import java.io.ByteArrayInputStream;
+import java.io.ByteArrayOutputStream;
+import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.util.*;
+
+import static org.apache.http.entity.ContentType.APPLICATION_OCTET_STREAM;
 
 /**
  * Created by stu on 9/6/15.
@@ -217,7 +218,7 @@ public class UserItemManager {
 
     private ObjectMetadata makeBasicMetadata( int bufferLength, boolean isPublic, String itemName ) {
         ObjectMetadata fileMetadata = new ObjectMetadata();
-        fileMetadata.setContentEncoding(MediaType.APPLICATION_OCTET_STREAM);
+        fileMetadata.setContentEncoding(APPLICATION_OCTET_STREAM.toString());
         if (isPublic) {
             fileMetadata.addUserMetadata(UploadMetadataFields.PUBLIC, UploadMetadataFields.TRUE_VALUE);
         } else {

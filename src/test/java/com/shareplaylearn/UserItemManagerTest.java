@@ -2,6 +2,7 @@ package com.shareplaylearn;
 
 import com.google.gson.Gson;
 import com.shareplaylearn.exceptions.InternalErrorException;
+import com.shareplaylearn.exceptions.QuotaExceededException;
 import com.shareplaylearn.models.ItemSchema;
 import com.shareplaylearn.models.UserItem;
 import org.junit.Test;
@@ -41,7 +42,7 @@ public class UserItemManagerTest
     }
 
     @Test
-    public void addUserItem() throws IOException, InternalErrorException {
+    public void addUserItem() throws IOException, InternalErrorException, QuotaExceededException {
         Path testFilePath = FileSystems.getDefault().getPath(testFiles[0]);
         byte[] testFileBytes = Files.readAllBytes(testFilePath);
         String filename = testFilePath.getFileName().toString();
