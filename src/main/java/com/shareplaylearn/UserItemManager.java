@@ -6,7 +6,8 @@ import com.amazonaws.auth.BasicAWSCredentials;
 import com.amazonaws.services.s3.AmazonS3Client;
 import com.amazonaws.services.s3.model.*;
 import com.amazonaws.util.Base64;
-import com.shareplaylearn.exceptions.InternalErrorException;
+import com.shareplaylearn.exceptions.*;
+import com.shareplaylearn.exceptions.UnsupportedEncodingException;
 import com.shareplaylearn.models.ItemSchema;
 import com.shareplaylearn.models.UploadMetadataFields;
 import com.shareplaylearn.models.UserItem;
@@ -14,7 +15,6 @@ import com.shareplaylearn.services.ImagePreprocessorPlugin;
 import com.shareplaylearn.services.SecretsService;
 import com.shareplaylearn.services.UploadPreprocessor;
 import com.shareplaylearn.services.UploadPreprocessorPlugin;
-import com.shareplaylearn.exceptions.Exceptions;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -22,6 +22,7 @@ import javax.ws.rs.core.MediaType;
 import javax.ws.rs.core.Response;
 
 import java.io.*;
+import java.nio.charset.StandardCharsets;
 import java.util.*;
 
 /**
@@ -34,6 +35,7 @@ import java.util.*;
  * Once we have a true metadata store, this code can be greatly simplified.
  * (in particular, the getItemList() that reconstructs metadata from the path).
  */
+@SuppressWarnings("WeakerAccess")
 public class UserItemManager {
     public static class AvailableEncodings {
         public static final String BASE64 = "BASE64";
@@ -62,11 +64,9 @@ public class UserItemManager {
         this.log = LoggerFactory.getLogger(UserItemManager.class);
     }
 
-    public Response addItem( String name, byte[] item ) throws InternalErrorException {
-        Response quotaCheck = this.checkQuota();
-        if( quotaCheck.getStatus() != 200 ) {
-            return quotaCheck;
-        }
+    public void addItem( String name, byte[] item )
+            throws InternalErrorException, QuotaExceededException {
+        this.checkQuota();
 
         List<UploadPreprocessorPlugin> uploadPreprocessorPlugins = new ArrayList<>();
         uploadPreprocessorPlugins.add(new ImagePreprocessorPlugin());
@@ -115,8 +115,6 @@ public class UserItemManager {
                         + " that was not found in the item types defined in the ItemSchema.");
             }
         }
-
-        return Response.status(201).build();
     }
 
     /**
@@ -145,56 +143,58 @@ public class UserItemManager {
         return true;
     }
 
-    public Response getItem(String contentType, ItemSchema.PresentationType presentationType,
-                            String name, String encoding ) {
+    /**
+     *
+     * @param contentType - the content type of the object - this value is given in the file listing.
+     *                      examples: image, unknown
+     * @param presentationType - which version of the object do you want? Preview, Original, etc
+     * @param name - the name of the object
+     * @param encoding  - how you would like the returned bytes encoded [null, empty string] => "identity"
+     *                      or "base64". If base64, returns the UTF-8 encoded bytes corresponding to the base64 encoded
+     *                      string of the objects bytes (e.g., sometimes useful in web ui's).
+     * @return
+     * @throws UnsupportedEncodingException
+     * @throws IOException
+     */
+    public byte[] getItem(String contentType, ItemSchema.PresentationType presentationType,
+                            String name, String encoding ) throws UnsupportedEncodingException, IOException {
+
         if( encoding != null && encoding.length() > 0 && !AvailableEncodings.isAvailable(encoding) ) {
-            return Response.status(Response.Status.UNSUPPORTED_MEDIA_TYPE)
-                    .entity("Inner Encoding Type: " + encoding + " not available").build();
+            throw new UnsupportedEncodingException( "Requested Encoding Type: " + encoding + " for item: "
+                    + name + "  not available");
         }
 
         AmazonS3Client s3Client = new AmazonS3Client(
                 new BasicAWSCredentials(SecretsService.amazonClientId, SecretsService.amazonClientSecret)
         );
 
-        try
-        {
-            S3Object object = s3Client.getObject(
-                    ItemSchema.S3_BUCKET,
-                    getItemLocation(name, contentType, presentationType)
-            );
-            try( S3ObjectInputStream inputStream = object.getObjectContent() ) {
-                long contentLength = object.getObjectMetadata().getContentLength();
-                if (contentLength > Limits.MAX_RETRIEVE_SIZE) {
-                    throw new IOException("Object is to large: " + contentLength + " bytes.");
-                }
-                int bufferSize = Math.min((int) contentLength, 10 * 8192);
-                byte[] buffer = new byte[bufferSize];
-                ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
-                int bytesRead = 0;
-                int totalBytesRead = 0;
-                while ((bytesRead = inputStream.read(buffer)) > 0) {
-                    outputStream.write(buffer, 0, bytesRead);
-                    totalBytesRead += bytesRead;
-                }
-                log.debug("GET in file resource read: " + totalBytesRead + " bytes.");
-                if( encoding == null || encoding.length() == 0 || encoding.equals(AvailableEncodings.IDENTITY) ) {
-                    return Response.status(Response.Status.OK).entity(outputStream.toByteArray()).build();
-                } else if( encoding.equals(AvailableEncodings.BASE64) ) {
-                    return Response.status(Response.Status.OK)
-                            .entity(Base64.encodeAsString(outputStream.toByteArray())).build();
-                } else {
-                    return Response.status(Response.Status.UNSUPPORTED_MEDIA_TYPE)
-                            .entity("Inner Encoding Type: " + encoding + " not available").build();
-                }
+        S3Object object = s3Client.getObject(
+                ItemSchema.S3_BUCKET,
+                getItemLocation(name, contentType, presentationType)
+        );
+        try( S3ObjectInputStream inputStream = object.getObjectContent() ) {
+            long contentLength = object.getObjectMetadata().getContentLength();
+            if (contentLength > Limits.MAX_RETRIEVE_SIZE) {
+                throw new IOException("Object is to large: " + contentLength + " bytes.");
             }
-        } catch (Exception e) {
-            StringWriter sw = new StringWriter();
-            PrintWriter pw = new PrintWriter(sw);
-            pw.println("\nFailed to retrieve: " + name);
-            e.printStackTrace(pw);
-            log.warn("Failed to retrieve: " + name);
-            log.info(Exceptions.asString(e));
-            return Response.status(Response.Status.INTERNAL_SERVER_ERROR).entity(sw.toString()).build();
+            int bufferSize = Math.min((int) contentLength, 10 * 8192);
+            byte[] buffer = new byte[bufferSize];
+            ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
+            int bytesRead;
+            int totalBytesRead = 0;
+            while ((bytesRead = inputStream.read(buffer)) > 0) {
+                outputStream.write(buffer, 0, bytesRead);
+                totalBytesRead += bytesRead;
+            }
+            log.debug("GET in file resource read: " + totalBytesRead + " bytes.");
+            if( encoding == null || encoding.length() == 0 || encoding.equals(AvailableEncodings.IDENTITY) ) {
+                return outputStream.toByteArray();
+            } else if( encoding.equals(AvailableEncodings.BASE64) ) {
+                return Base64.encodeAsString(outputStream.toByteArray()).getBytes(StandardCharsets.UTF_8);
+            } else {
+                throw new UnsupportedEncodingException("Encoding: " + encoding + " not supported for item:" +
+                        "" + name);
+            }
         }
     }
 
@@ -388,33 +388,40 @@ public class UserItemManager {
      * @param maxSize
      * @return
      */
-    private Response checkObjectListingSize( ObjectListing objectListing, int maxSize )
+    private boolean isListingMaxExceeded( ObjectListing objectListing,
+                                          AmazonS3Client s3Client, int maxSize )
     {
-        if( objectListing.isTruncated() && objectListing.getMaxKeys() >= maxSize ) {
+        long totalNumFiles = objectListing.getObjectSummaries().size();
+        if( totalNumFiles >= maxSize ) {
             log.error("Error, too many uploads");
-            return Response.status(418).entity("I'm a teapot! j/k - not enough space " + maxSize).build();
+            return true;
         }
-        if( objectListing.getObjectSummaries().size() >= maxSize ) {
-            log.error("Error, too many uploads");
-            return Response.status(418).entity("I'm a teapot! Er, well, at least I can't hold " + maxSize + " stuff.").build();
+
+        int numListings = 0;
+        while( objectListing.isTruncated()) {
+            objectListing = s3Client.listNextBatchOfObjects(objectListing);
+            totalNumFiles += objectListing.getObjectSummaries().size();
+            numListings++;
+            if( totalNumFiles >= maxSize ) {
+                log.error("Error, too many uploads, performed: " + numListings + " listings.");
+                return true;
+            }
         }
-            return Response.status(Response.Status.OK).entity("OK").build();
+        return false;
     }
 
-    private Response checkQuota() {
+    private void checkQuota()
+        throws QuotaExceededException  {
         AmazonS3Client s3Client = new AmazonS3Client(
                 new BasicAWSCredentials(SecretsService.amazonClientId, SecretsService.amazonClientSecret));
         ObjectListing curList = s3Client.listObjects(ItemSchema.S3_BUCKET, this.getUserDir());
-        Response listCheck;
-        if ((listCheck = this.checkObjectListingSize(curList, Limits.MAX_NUM_FILES_PER_USER)).getStatus()
-                != Response.Status.OK.getStatusCode()) {
-            return listCheck;
+        if (isListingMaxExceeded(curList, s3Client, Limits.MAX_NUM_FILES_PER_USER)) {
+            throw new QuotaExceededException("Too many items stored for user, exceeded max files per user: " +
+                Limits.MAX_NUM_FILES_PER_USER);
         }
-        ObjectListing userList = s3Client.listObjects(ItemSchema.S3_BUCKET, "/");
-        if ((listCheck = this.checkObjectListingSize(userList, Limits.MAX_TOTAL_FILES)).getStatus()
-                != Response.Status.OK.getStatusCode()) {
-            return listCheck;
+        if (isListingMaxExceeded(curList, s3Client, Limits.MAX_TOTAL_FILES)) {
+            throw new QuotaExceededException("Too many items stored for user, exceeded max files for the whole system: " +
+                    Limits.MAX_TOTAL_FILES);
         }
-        return Response.status(Response.Status.OK).build();
     }
 }
