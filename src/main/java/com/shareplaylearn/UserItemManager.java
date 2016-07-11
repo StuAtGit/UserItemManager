@@ -120,22 +120,22 @@ public class UserItemManager {
 
     /**
      * Delete sub-item/representation of the item at the given individual location.
-     * @param contentType
+     * @param fileType
      * @param presentationType
      * @param itemName
      * @return
      * @throws AmazonClientException
      */
-    public boolean deleteItemAtLocation(String contentType, ItemSchema.PresentationType presentationType, String itemName )
+    public boolean deleteItemAtLocation(String fileType, ItemSchema.PresentationType presentationType, String itemName )
             throws AmazonClientException {
         AmazonS3Client s3Client = new AmazonS3Client(
                 new BasicAWSCredentials(SecretsService.amazonClientId, SecretsService.amazonClientSecret)
         );
 
-        String itemLocation =  getItemLocation(itemName, contentType, presentationType);
+        String itemLocation =  getItemLocation(itemName, fileType, presentationType);
         if (!s3Client.doesObjectExist(ItemSchema.S3_BUCKET,
                itemLocation)) {
-            log.debug("Did not find item at: " + getItemLocation(itemName, contentType, presentationType));
+            log.debug("Did not find item at: " + getItemLocation(itemName, fileType, presentationType));
             return false;
         }
         s3Client.deleteObject(ItemSchema.S3_BUCKET,
@@ -146,7 +146,7 @@ public class UserItemManager {
 
     /**
      *
-     * @param contentType - the content type of the object - this value is given in the file listing.
+     * @param fileType - the content type of the object - this value is given in the file listing.
      *                      examples: image, unknown
      * @param presentationType - which version of the object do you want? Preview, Original, etc
      * @param name - the name of the object
@@ -157,7 +157,7 @@ public class UserItemManager {
      * @throws UnsupportedEncodingException
      * @throws IOException
      */
-    public byte[] getItem(String contentType, ItemSchema.PresentationType presentationType,
+    public byte[] getItem(String fileType, ItemSchema.PresentationType presentationType,
                             String name, String encoding ) throws UnsupportedEncodingException, IOException {
 
         if( encoding != null && encoding.length() > 0 && !AvailableEncodings.isAvailable(encoding) ) {
@@ -171,7 +171,7 @@ public class UserItemManager {
 
         S3Object object = s3Client.getObject(
                 ItemSchema.S3_BUCKET,
-                getItemLocation(name, contentType, presentationType)
+                getItemLocation(name, fileType, presentationType)
         );
         try( S3ObjectInputStream inputStream = object.getObjectContent() ) {
             long contentLength = object.getObjectMetadata().getContentLength();
@@ -202,16 +202,17 @@ public class UserItemManager {
     /**
      * Writes items to S3, and item metadata to Redis
      */
-    private void saveItemAtLocation(String name, byte[] itemData, String contentType, ItemSchema.PresentationType presentationType  )
+    private void saveItemAtLocation(String name, byte[] itemData, String fileType,
+                                    ItemSchema.PresentationType presentationType  )
             throws InternalErrorException {
 
-        String itemLocation = this.getItemLocation(name, contentType, presentationType);
+        String itemLocation = this.getItemLocation(name, fileType, presentationType);
         AmazonS3Client s3Client = new AmazonS3Client(
                 new BasicAWSCredentials(SecretsService.amazonClientId, SecretsService.amazonClientSecret)
         );
         ByteArrayInputStream byteArrayInputStream = new ByteArrayInputStream(itemData);
         ObjectMetadata metadata = this.makeBasicMetadata(itemData.length, false, name);
-        metadata.addUserMetadata(UploadMetadataFields.CONTENT_TYPE, contentType);
+        metadata.addUserMetadata(UploadMetadataFields.CONTENT_TYPE, fileType);
         //TODO: save this metadata, along with location, to local Redis
         s3Client.putObject(ItemSchema.S3_BUCKET, itemLocation, byteArrayInputStream, metadata);
     }
