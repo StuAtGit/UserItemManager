@@ -53,12 +53,10 @@ public class UserItemManager {
 
     private String userName;
     private String userId;
-    private String userDir;
 
     public UserItemManager(String userName, String userId) {
         this.userName = userName;
         this.userId = userId;
-        this.userDir = this.getUserDir();
         this.itemQuota = new HashMap<>();
         this.itemQuota.put(ItemSchema.IMAGE_CONTENT_TYPE, Limits.DEFAULT_ITEM_QUOTA);
         this.itemQuota.put(ItemSchema.UNKNOWN_CONTENT_TYPE, Limits.DEFAULT_ITEM_QUOTA / 2);
@@ -373,7 +371,7 @@ public class UserItemManager {
 
     public String getItemDirectory(String contentType,
                                    ItemSchema.PresentationType presentationType) {
-        return this.userDir + contentType + "/" + presentationType + "/";
+        return this.getUserDir() + contentType + "/" + presentationType + "/";
     }
 
     public String getItemLocation( String name, String contentType,
