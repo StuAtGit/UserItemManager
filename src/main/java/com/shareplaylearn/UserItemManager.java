@@ -36,7 +36,7 @@ import static org.apache.http.entity.ContentType.APPLICATION_OCTET_STREAM;
  * Once we have a true metadata store, this code can be greatly simplified.
  * (in particular, the getItemList() that reconstructs metadata from the path).
  */
-@SuppressWarnings("WeakerAccess")
+@SuppressWarnings({"WeakerAccess", "unused"})
 public class UserItemManager {
     public static class AvailableEncodings {
         public static final String BASE64 = "BASE64";
@@ -50,7 +50,6 @@ public class UserItemManager {
     private int totalItemQuota = Limits.DEFAULT_ITEM_QUOTA;
     private HashMap<String,Integer> itemQuota;
     private Logger log;
-
     private String userName;
     private String userId;
 
@@ -61,6 +60,24 @@ public class UserItemManager {
         this.itemQuota.put(ItemSchema.IMAGE_CONTENT_TYPE, Limits.DEFAULT_ITEM_QUOTA);
         this.itemQuota.put(ItemSchema.UNKNOWN_CONTENT_TYPE, Limits.DEFAULT_ITEM_QUOTA / 2);
         this.log = LoggerFactory.getLogger(UserItemManager.class);
+    }
+
+    public String getUserName() {
+        return userName;
+    }
+
+    public UserItemManager setUserName(String userName) {
+        this.userName = userName;
+        return this;
+    }
+
+    public String getUserId() {
+        return userId;
+    }
+
+    public UserItemManager setUserId(String userId) {
+        this.userId = userId;
+        return this;
     }
 
     public void addItem( String name, byte[] item )
