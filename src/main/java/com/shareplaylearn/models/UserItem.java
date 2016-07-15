@@ -1,5 +1,6 @@
 package com.shareplaylearn.models;
 
+import com.google.gson.Gson;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -15,8 +16,17 @@ public class UserItem {
             this.fullPath = fullPath;
             this.itemName = itemName;
         }
+        public String toString() {
+            Gson gson = new Gson();
+            return gson.toJson(this);
+        }
         public String fullPath;
         public String itemName;
+    }
+
+    public String toString() {
+        Gson gson = new Gson();
+        return gson.toJson(this);
     }
     //this field is for backward-compability with current UI code
     //once the UI is updated, remove it.
