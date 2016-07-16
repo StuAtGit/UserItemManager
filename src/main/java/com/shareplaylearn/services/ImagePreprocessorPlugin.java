@@ -21,7 +21,7 @@ public class ImagePreprocessorPlugin
 
     private byte[] imageBuffer;
     public static final int PREVIEW_WIDTH = 200;
-    public static final int RESIZE_LIMIT = 1024;
+    public static final int RESIZE_LIMIT = 512;
     public static final String RESIZED_TAG = "resized";
     private String preferredFileExtension;
     //set when we calculate a preview
