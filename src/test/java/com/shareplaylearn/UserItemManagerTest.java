@@ -25,7 +25,7 @@ public class UserItemManagerTest
 {
     private UserItemManager userItemManager;
     private static Random random = new Random();
-    private static final String[] testFiles = { "test_jpegs/pctechsupportcat.jpg" };
+    private static final String[] testFiles = { "test_jpegs/pctechsupportcat.jpg", "test_jpegs/LuckyWaitress.png", "test_jpegs/Disneyland.jpg" };
     private static final Logger log = LoggerFactory.getLogger(UserItemManagerTest.class);
 
     public UserItemManagerTest() {
@@ -43,38 +43,44 @@ public class UserItemManagerTest
 
     @Test
     public void addUserItem() throws IOException, InternalErrorException, QuotaExceededException {
-        Path testFilePath = FileSystems.getDefault().getPath(testFiles[0]);
-        byte[] testFileBytes = Files.readAllBytes(testFilePath);
-        String filename = testFilePath.getFileName().toString();
-        log.debug("Testing upload of: " + filename);
-        userItemManager.addItem(filename, testFileBytes);
-        List<UserItem> userItemList = userItemManager.getItemList();
-        Gson gson = new Gson();
-        log.debug("user item list is now: " + gson.toJson(userItemList));
-        boolean found = false;
-        for (UserItem userItem : userItemList) {
-            if (filename.startsWith(userItem.getAttr("display_name")) &&
-                    userItem.getType().equals("image")) {
-                found = true;
-                System.out.println(
-                        "Deleted: "  + userItemManager.deleteItemAtLocation(userItem.getType(),
-                                ItemSchema.PresentationType.ORIGINAL_PRESENTATION_TYPE,
-                                userItem.getOriginalLocation().itemName)
-                );
-                System.out.println(
-                        "Deleted: "  + userItemManager.deleteItemAtLocation(userItem.getType(),
-                                ItemSchema.PresentationType.PREVIEW_PRESENTATION_TYPE,
-                                userItem.getPreviewLocation().itemName)
-                );
-                System.out.println(
-                        "Deleted: "  + userItemManager.deleteItemAtLocation(userItem.getType(),
-                                ItemSchema.PresentationType.PREFERRED_PRESENTATION_TYPE,
-                                userItem.getPreferredLocation().itemName)
-                );
-                break;
+        for( String testFile : testFiles ) {
+            Path testFilePath = FileSystems.getDefault().getPath(testFile);
+            if( !Files.exists(testFilePath) ) {
+                log.warn("Missing test file!! " + testFilePath);
+                continue;
             }
+            byte[] testFileBytes = Files.readAllBytes(testFilePath);
+            String filename = testFilePath.getFileName().toString();
+            log.debug("Testing upload of: " + filename);
+            userItemManager.addItem(filename, testFileBytes);
+            List<UserItem> userItemList = userItemManager.getItemList();
+            Gson gson = new Gson();
+            log.debug("user item list is now: " + gson.toJson(userItemList));
+            boolean found = false;
+            for (UserItem userItem : userItemList) {
+                if (filename.startsWith(userItem.getAttr("display_name")) &&
+                        userItem.getType().equals("image")) {
+                    found = true;
+                    System.out.println(
+                            "Deleted: " + userItemManager.deleteItemAtLocation(userItem.getType(),
+                                    ItemSchema.PresentationType.ORIGINAL_PRESENTATION_TYPE,
+                                    userItem.getOriginalLocation().itemName)
+                    );
+                    System.out.println(
+                            "Deleted: " + userItemManager.deleteItemAtLocation(userItem.getType(),
+                                    ItemSchema.PresentationType.PREVIEW_PRESENTATION_TYPE,
+                                    userItem.getPreviewLocation().itemName)
+                    );
+                    System.out.println(
+                            "Deleted: " + userItemManager.deleteItemAtLocation(userItem.getType(),
+                                    ItemSchema.PresentationType.PREFERRED_PRESENTATION_TYPE,
+                                    userItem.getPreferredLocation().itemName)
+                    );
+                    break;
+                }
+            }
+            assertTrue(found);
         }
-        assertTrue(found);
 
     }
 }
