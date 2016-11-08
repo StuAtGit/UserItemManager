@@ -71,6 +71,11 @@ public class UploadPreprocessor
     }
 
     @Override
+    public String getPreviewFileExtension() {
+        return "";
+    }
+
+    @Override
     public String getContentType() {
         return ItemSchema.UNKNOWN_CONTENT_TYPE;
     }

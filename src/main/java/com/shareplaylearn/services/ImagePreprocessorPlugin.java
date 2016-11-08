@@ -27,9 +27,10 @@ public class ImagePreprocessorPlugin
     implements UploadPreprocessorPlugin {
 
     public static final int PREVIEW_WIDTH = 200;
-    public static final int RESIZE_LIMIT = 1024;
+    public static final int RESIZE_LIMIT = 768;
     public float imageQuality;
     private String preferredFileExtension;
+    private String previewFileExtension;
     //set when we calculate a preview
     private int lastPreviewHeight;
     //always set when we adjust the height,
@@ -42,6 +43,7 @@ public class ImagePreprocessorPlugin
         this.lastPreviewHeight = -1;
         this.lastHeight = -1;
         this.preferredFileExtension = "";
+        this.previewFileExtension = "";
         this.imageQuality = 0.7f;
     }
 
@@ -49,6 +51,7 @@ public class ImagePreprocessorPlugin
         this.lastPreviewHeight = -1;
         this.lastHeight = -1;
         this.preferredFileExtension = "";
+        this.previewFileExtension = "";
         this.imageQuality = imageQuality;
     }
 
@@ -64,6 +67,11 @@ public class ImagePreprocessorPlugin
     @Override
     public String getPreferredFileExtension() {
         return this.preferredFileExtension;
+    }
+
+    @Override
+    public String getPreviewFileExtension() {
+        return this.previewFileExtension;
     }
 
     @Override
@@ -103,6 +111,7 @@ public class ImagePreprocessorPlugin
             bufferedImage = this.getBufferedImage(fileBuffer);
             originalWidth = bufferedImage.getWidth();
             byte[] previewBuffer = scaleImageToWidth(bufferedImage, PREVIEW_WIDTH);
+            this.previewFileExtension = "jpg";
             uploadList.put(ItemSchema.PresentationType.PREVIEW_PRESENTATION_TYPE, previewBuffer);
             this.lastPreviewHeight = this.lastHeight;
         } catch( IOException e ) {

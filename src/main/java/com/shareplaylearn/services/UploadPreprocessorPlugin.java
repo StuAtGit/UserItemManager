@@ -19,6 +19,9 @@ public interface UploadPreprocessorPlugin {
     //this returns the file extension to use with any preferred presentation type transformation,
     //returns an empty string if the preferred is the original (no transformation)
     String getPreferredFileExtension();
+
+    String getPreviewFileExtension();
+
     //this is the ItemSchema content type, not an HTTP content type
     String getContentType();
 }

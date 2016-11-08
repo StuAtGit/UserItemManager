@@ -108,28 +108,43 @@ public class UserItemManager {
                 //this is a little bit of a hack, but is necessary for downloads
                 //using the name of the item to work
                 //OK in user agents (browsers)
+                String preferredFileExtension = pluginUsed.getPreferredFileExtension();
+                String previewFileExtension = pluginUsed.getPreviewFileExtension();
                 if( presentationType.equals(ItemSchema.PresentationType.PREFERRED_PRESENTATION_TYPE) &&
-                        pluginUsed.getPreferredFileExtension() != null &&
-                        pluginUsed.getPreferredFileExtension().length() > 0 &&
-                        !name.endsWith(pluginUsed.getPreferredFileExtension() ) ) {
-                    String preferredExtension = pluginUsed.getPreferredFileExtension();
-                    if( !preferredExtension.startsWith(".") ) {
-                        preferredExtension = "." + preferredExtension;
-                    }
-                    int extIndex = name.lastIndexOf(".");
-                    if( extIndex > 0 ) {
-                        this.saveItemAtLocation(name.substring(0, extIndex) + preferredExtension,
-                                uploadEntry.getValue(), contentType, presentationType);
-                    } else {
-                        this.saveItemAtLocation(name + preferredExtension, uploadEntry.getValue(), contentType, presentationType);
-                    }
-                } else {
+                    preferredFileExtension != null &&
+                    preferredFileExtension.length() > 0 &&
+                    !name.endsWith(preferredFileExtension)
+                   ) {
+                    saveItemWithExtension(uploadEntry, name, presentationType, contentType, preferredFileExtension);
+                } else if ( presentationType.equals(ItemSchema.PresentationType.PREVIEW_PRESENTATION_TYPE) &&
+                            previewFileExtension != null &&
+                            previewFileExtension.length() > 0 &&
+                            !name.endsWith(previewFileExtension)
+                        )  {
+                    saveItemWithExtension(uploadEntry, name, presentationType, contentType, previewFileExtension);
+                }
+                else {
                     this.saveItemAtLocation(name, uploadEntry.getValue(), contentType, presentationType);
                 }
             } else {
                 log.error( "Upload plugin had an entry with a presentation type of: " + presentationType
                         + " that was not found in the item types defined in the ItemSchema.");
             }
+        }
+    }
+
+    private void saveItemWithExtension(Map.Entry<ItemSchema.PresentationType,byte[]> uploadEntry, String itemName,
+                                       ItemSchema.PresentationType presentationType,
+                                       String contentType, String extension ) throws InternalErrorException {
+        if( !extension.startsWith(".") ) {
+            extension = "." + extension;
+        }
+        int extIndex = itemName.lastIndexOf(".");
+        if( extIndex > 0 ) {
+            this.saveItemAtLocation(itemName.substring(0, extIndex) + extension,
+                    uploadEntry.getValue(), contentType, presentationType);
+        } else {
+            this.saveItemAtLocation(itemName + extension, uploadEntry.getValue(), contentType, presentationType);
         }
     }
 

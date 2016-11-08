@@ -28,25 +28,19 @@ public class UserItem {
         Gson gson = new Gson();
         return gson.toJson(this);
     }
-    //this field is for backward-compability with current UI code
-    //once the UI is updated, remove it.
-    //it should be set to the preferred location, unless that does not exist,
-    //and then it should be set to the original location
-    //private UserItemLocation itemLocation;
 
     private UserItemLocation preferredLocation;
     private UserItemLocation previewLocation;
     private UserItemLocation originalLocation;
     private String type;
     private HashMap<String,String> attr;
-    //looks like Gson doesn't know what to do with this, if it's an instance field
+    //keep it static so Gson doesn't bother with it
     private static Logger log = LoggerFactory.getLogger(UserItem.class);
 
     public UserItem(String type) {
         this.previewLocation = null;
         this.originalLocation = null;
         this.preferredLocation = null;
-        //this.itemLocation = null;
         this.type = type;
         this.attr = new HashMap<>();
         this.log = LoggerFactory.getLogger(UserItem.class);
@@ -71,15 +65,11 @@ public class UserItem {
         if( presentationType.equals(ItemSchema.PresentationType.PREVIEW_PRESENTATION_TYPE) ) {
             return this.setPreviewLocation(location);
         } else if( presentationType.equals(ItemSchema.PresentationType.ORIGINAL_PRESENTATION_TYPE) ) {
-//            if( this.itemLocation == null ) {
-//                this.itemLocation = location;
-//            }
             if( this.preferredLocation == null ) {
                 this.preferredLocation = location;
             }
             return this.setOriginalLocation(location);
         } else if( presentationType.equals(ItemSchema.PresentationType.PREFERRED_PRESENTATION_TYPE) ) {
-//            this.itemLocation = location;
             return this.setPreferredLocation(location);
         } else {
             String message = "Tried to set location with an unrecognized presentation type";

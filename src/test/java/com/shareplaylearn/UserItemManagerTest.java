@@ -25,7 +25,7 @@ public class UserItemManagerTest
 {
     private UserItemManager userItemManager;
     private static Random random = new Random();
-    private static final String[] testFiles = { "test_jpegs/pctechsupportcat.jpg", "test_jpegs/LuckyWaitress.png", "test_jpegs/Disneyland.jpg" };
+    private static final String[] testFiles = { "test_jpegs/LuckyWaitress.png", "test_jpegs/pctechsupportcat.jpg", "test_jpegs/Disneyland.jpg" };
     private static final Logger log = LoggerFactory.getLogger(UserItemManagerTest.class);
 
     public UserItemManagerTest() {
